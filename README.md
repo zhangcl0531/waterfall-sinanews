@@ -1,7 +1,7 @@
 # waterfall-sinanews
 
 
-[预览链接](http://js.jirengu.com/lomibaqiho)
+[预览链接](http://js.jirengu.com/pocufudipu)
 
 ## 懒加载原理
 当访问一个页面的时候，先把img元素或是其他元素的背景图片路径替换成同一张图片的路径（这样就只需请求一次），只有当图片出现在浏览器的可视区域内时，才设置图片正真的路径，让图片显示出来。这就是图片懒加载。
