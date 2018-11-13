@@ -1,0 +1,286 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>瀑布流新闻站</title>
+    <script src="https://cdn.bootcss.com/jquery/3.3.1/jquery.js"></script>
+    <style>
+        html, body, ul, li, p {
+            margin: 0;
+            padding: 0;
+        }
+
+        ul, li {
+            list-style: none;
+        }
+
+        a {
+            text-decoration: none;
+            outline: none;
+        }
+
+        .ct-waterfall {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 10px;
+        }
+
+        .clearfix:after {
+            content: "";
+            display: block;
+            clear: both;
+        }
+
+        .ct {
+            position: relative;
+            padding: 10px;
+            margin: 0 auto;
+        }
+
+        .ct .item {
+            width: 280px;
+            position: absolute;
+            padding: 0 0 10px 0;
+            box-shadow: 2px 2px 2px #E8E8E8;
+            border: 1px solid #DFDFDF;
+            background: #ffffff;
+            transition: all .5s;
+            border-radius: 3px;
+            margin: 10px;
+        }
+
+        .ct .item img {
+            margin: 10px;
+            width: 260px;
+        }
+
+        .ct .item .header {
+            height: 25px;
+            margin: 0 12px;
+            border-bottom: 1px solid #DBDBDB;
+            color: #333333;
+        }
+
+        .ct .desp {
+            font-size: 12px;
+            line-height: 1.8;
+            margin: 10px 15px 0;
+            color: #777371;
+        }
+
+        #load {
+            visibility: hidden;
+            height: 20px;
+        }
+
+        .hide {
+            display: none;
+        }
+    </style>
+</head>
+<body>
+<div class="ct-waterfall clearfix">
+    <ul id="pic-ct" class="ct clearfix">
+        <li class="item hide"></li>
+        <!--<li class="item">-->
+        <!--<a href="#" class="link">-->
+        <!--<img src="">-->
+        <!--<h4 class="header">标题</h4>-->
+        <!--<p class="desp">-->
+        <!--xxxxx-->
+        <!--</p>-->
+        <!--</a>-->
+        <!--</li>-->
+    </ul>
+    <div id="load">我是看不见的</div>
+</div>
+
+
+<script>
+    // 1.获取数据
+    //     1.1 获取page = 1 的 12条，page++ (此时page =2)
+    //     1.2 当页面滚动，load出现在屏幕时，再获取page  的12条
+    // 2.把数据拼装成dom 放到页面
+    // 3.使用瀑布流去摆放 dom 位置
+
+    // 判断load是否出现在屏幕
+
+    var $target = $('#load');
+    var curPage = 1;
+    var perPageCount = 12;
+    var colCount;
+    var colHeightArray = []; // 生成列数组
+
+    var imgWidth = $('.item').outerWidth(true); // 获取item 标签宽度
+    console.log(imgWidth);
+    colCount = Math.floor($('.ct-waterfall').width() / imgWidth); // 判断有多少列
+    console.log(colCount);
+
+    for (var i = 0; i < colCount; i++) {
+        colHeightArray[i] = 0
+    } //生成列数组
+    //[0,0,0]
+
+    var isDateArrive = true;  // 设置是否正在获取数据标示，函数截流
+
+    $(window).on('scroll', function () {
+        if(!isDateArrive){
+            return
+        }else {
+            checkShow();
+        }
+    });
+
+    checkShow();
+    getDate()
+
+    function checkShow() {
+        if (isShow($target)) {
+            isDateArrive = false;
+            getDate()
+        }
+    }
+
+    function isShow($node) {
+        return $node.offset().top <= $(window).height() + $(window).scrollTop()
+        // var scrollH = $(window).scrollTop(),
+        //     winH = $(window).height(),
+        //     top = $el.offset().top;
+        // if (top <= winH + scrollH) {
+        //     return true;
+        // } else {
+        //     return false;
+        // }
+    }
+
+
+
+
+    function getDate() {
+        console.log('load');
+        $.ajax({
+            url: 'http://platform.sina.com.cn/slide/album_tech',
+            type: 'get',
+            dataType: 'jsonp',
+            jsonp: "jsoncallback",
+            data: {
+                app_key: '1271687855',
+                format: 'json',
+                size: 'img',
+                num: perPageCount,
+                page: curPage
+            },
+            success: function (ret) {
+                if (ret.status.code == 0) {
+                    var dateArr = ret.data;  // 获取到接口数据
+                    console.log(dateArr);
+                    renderData(dateArr);
+                    curPage++;
+                }
+            }
+        })
+    }
+
+    // 渲染数据
+    function renderData(items) {
+        var tpl = '', $nodes;
+        for (var i = 0; i < items.length; i++) {
+            tpl += '<li class="item">';
+            tpl += '<a href="'+ items[i].url +'" class="link"><img src="' + items[i].img_url + '" alt=""></a>';
+            tpl += '<h4 class="header">' + items[i].short_name + '</h4>';
+            tpl += '<p class="desp">' + items[i].name + '</p>';
+            tpl += '</li>';
+        }
+        $nodes = $(tpl);
+        $nodes.find('img').on('load', function () {
+            $('#pic-ct').append($nodes);
+        });
+        waterFall($nodes);  // 布置瀑布流
+        isDateArrive = true // 还原标示
+    }
+
+
+    // 创建瀑布流
+    function waterFall($nodes) {
+        $nodes.find('img').on('load',function () {
+            var minIndex = 0; //设定初始列
+            var minValue = colHeightArray[0]; // 设定初始列高度
+            for (var i = 0; i < colCount; i++) {
+                if (colHeightArray[i] < minValue) {
+                    minValue = colHeightArray[i];
+                    minIndex = i
+                }
+            }
+            // 判断数组内谁最小
+            $(this).parent().parent().css({
+                left: minIndex * imgWidth,
+                top: minValue
+            });
+            colHeightArray[minIndex] += $(this).parent().parent().outerHeight(true)
+            $('#pic-ct').height(Math.max.apply(null, colHeightArray))
+
+        })
+    }
+
+    //  调整窗体大小时，动态调整页面布局
+    $(window).on('resize',function () {
+        var colHeightArray = []; // 生成列数组
+
+        var imgWidth = $('.item').outerWidth(true); // 获取item 标签宽度
+        console.log(imgWidth);
+        colCount = Math.floor($('.ct-waterfall').width() / imgWidth); // 判断有多少列
+        console.log(colCount);
+
+        for (var i = 0; i < colCount; i++) {
+            colHeightArray[i] = 0
+        } //生成列数组
+        //[0,0,0]
+
+        $('.item').each(function () {
+            var minIndex = 0; //设定初始列
+            var minValue = colHeightArray[0]; // 设定初始列高度
+            for (var i = 0; i < colCount; i++) {
+                if (colHeightArray[i] < minValue) {
+                    minValue = colHeightArray[i];
+                    minIndex = i
+                }
+            }
+            // 判断数组内谁最小
+            $(this).css({
+                left: minIndex * imgWidth,
+                top: minValue
+            });
+            colHeightArray[minIndex] += $(this).outerHeight(true)
+            $('#pic-ct').height(Math.max.apply(null, colHeightArray))
+
+        })
+    })
+    // 封装
+    // var ExposureTarget = (function () {
+    //     function bind($target,handler) {
+    //         $(window).on('scroll', function () {
+    //             checkShow();
+    //         });
+    //
+    //         checkShow();
+    //
+    //         function checkShow() {
+    //             if (isShow($target)) {
+    //                 loadImg()
+    //             }
+    //         }
+    //         function isShow($node) {
+    //             return $node.offset().top <= $(window).height() + $(window).scrollTop()
+    //         }
+    //     }
+    //     return {
+    //         bind: bind
+    //     }
+    // })();
+    //
+    // ExposureTarget.bind($target,loadImg())
+
+
+</script>
+</body>
+</html>
